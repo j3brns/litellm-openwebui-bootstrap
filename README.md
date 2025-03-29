@@ -1,11 +1,11 @@
-# Light Bootstrap for Rpi : Open WebUI GUI with LiteLLM
-## Enterprise features for home and leisure!
-### Home Assistant HACS version on the way...
+#  Open WebUI GUI with LiteLLM Light Bootstrap for Rpi :
+## Open LLM Gateway with features for home and leisure!
+### _Home Assistant HACS version on the way..._
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-powered-blue.svg)
 
-A robust setup for running Open WebUI with LiteLLM as a backend proxy, providing access to state-of-the-art AI models through a user-friendly interface. This project uses Docker Compose to orchestrate the services seamlessly.
+A reasonably robust setup for running Open WebUI with LiteLLM as a backend proxy, providing access to state-of-the-art AI models through a user-friendly interface. This project uses Docker Compose to orchestrate the services seamlessly.
 
 ## 🚀 Features
 
