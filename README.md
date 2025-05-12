@@ -1,3 +1,5 @@
+!EXPERIMENTAL!
+
 # Bootstrap an Open LLM and AI Gateway for home or leisure
 ##  Open WebUI GUI with LiteLLM Bootstrapped as containers for Rpi :
 ### _Home Assistant HACS version on the way..._
