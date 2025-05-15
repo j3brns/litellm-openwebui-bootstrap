@@ -47,7 +47,7 @@ Ensure the `config.yml` file is present in the project root. This file configure
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/openwebui-litellm-setup.git
+   git clone https://github.com/j3brns/openwebui-litellm-setup.git
    cd openwebui-litellm-setup
    ```
 
