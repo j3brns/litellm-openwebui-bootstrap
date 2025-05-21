@@ -2,12 +2,12 @@
 
 # Bootstrap an Open LLM and AI Gateway for home or leisure
 ##  Open WebUI GUI with LiteLLM Bootstrapped as containers for Rpi :
-### _Home Assistant HACS version on the way..._
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-powered-blue.svg)
 
 A reasonably robust setup for running Open WebUI with LiteLLM as a backend proxy, providing access to state-of-the-art AI models through a user-friendly interface. This project uses Docker Compose to orchestrate the services seamlessly.
+Open WebUI provides an intuitive, chat-based graphical interface, making it easy to interact with the various language models. LiteLLM acts as a robust backend proxy, standardizing API calls to a wide array of LLM providers and managing model configurations.
 
 ## 🚀 Features
 
@@ -28,7 +28,7 @@ A reasonably robust setup for running Open WebUI with LiteLLM as a backend proxy
 1. Create a `.env` file in the project root with the following content:
 
 ```env
-MASTER_KEY=your_master_key  # required
+MASTER_KEY=your_master_key  # Required. Set to a strong, unique, randomly generated string. This key is used by Open WebUI to authenticate with LiteLLM.
 ANTHROPIC_API_KEY=your_anthropic_api_key
 OPENAI_API_KEY=your_openai_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
@@ -64,10 +64,48 @@ Ensure the `config.yml` file is present in the project root. This file configure
 
 ## 🧩 Services Architecture
 
+The services interact as follows: Users connect to Open WebUI, which then communicates with LiteLLM. LiteLLM, acting as a proxy and translation layer, forwards requests to the appropriate configured LLM provider API. The PostgreSQL database stores metadata for LiteLLM and data for Open WebUI.
+
+```
++-----------------+      +-----------------+      +----------------------+
+|   User via      |----->|   Open WebUI    |----->|       LiteLLM        |
+|   Browser       |      | (Port 3000)     |      | (Port 4000)          |
++-----------------+      +-----------------+      +----------------------+
+                               |                         |        /|\
+                               |                         |       / | \
+                               |                         |      /  |  \
+                               |                         V     V   V   V
+                               |      +-----------------+  +-------+-------+
+                               |      |   PostgreSQL    |  | LLM Providers |
+                               |----->|   Database      |  | (OpenAI, etc.)|
+                               |      +-----------------+  +---------------+
+                               +------> (OIDC/Auth data,
+                                        Chat History etc.)
+```
+
 | Service | Port | Description |
 |---------|------|-------------|
 | Open WebUI | 3000 | User interface for interacting with AI models |
 | LiteLLM | 4000 | Backend proxy that handles requests to various AI providers |
+
+## ⚙️ Service Configuration Details
+
+This project is configured with several best practices in mind:
+
+### Dockerfile (`litellm` service)
+- **Non-Root User:** The Docker image for the `litellm` service is configured to run the application as a non-root user (`litellm_user`), enhancing security by reducing potential container vulnerabilities.
+- **CMD for Debug vs. Production:** The `Dockerfile` itself contains two `CMD` instructions for the `litellm` service:
+    - The default `CMD ["--port", "4000", "--config", "config.yml", "--detailed_debug"]` is used if you build an image directly from the Dockerfile (e.g., for development or testing). The `--detailed_debug` flag provides verbose logging.
+    - A commented-out CMD `CMD ["--port", "4000", "--config", "config.yml"]` is recommended for production to avoid excessive logging and potential performance impacts.
+- When using `docker-compose up`, the `command` specified in `docker-compose.yaml` for the `litellm` service (`--config /app/config.yaml --port 4000`) is used, which does *not* include `--detailed_debug` by default, making it suitable for general use.
+- **Base Image:** The `Dockerfile` for `litellm` uses `FROM ghcr.io/berriai/litellm-database:main-latest`. Similar to other images tagged with `main` or `latest`, this tracks recent changes. For critical production setups where maximum stability is desired, you might consider investigating if specific tagged releases or commit SHAs of this base image are available and adapt the `Dockerfile` accordingly.
+
+### Docker Compose (`docker-compose.yaml`)
+- **Image Tagging:**
+    - `open-webui`: Uses a specific version tag (e.g., `v0.6.10`) from `ghcr.io/open-webui/open-webui` for improved stability. You can check for newer versions on the [Open WebUI Releases page](https://github.com/open-webui/open-webui/releases).
+    - `litellm`: Uses the `main-latest` tag from `ghcr.io/berriai/litellm-database`. While this provides recent features, for critical production environments, consider finding and pinning to a specific SHA digest or a tagged release if available for this image to ensure maximum stability.
+    - `postgres`: Uses a specific major version tag (e.g., `postgres:16-alpine`) to prevent unexpected automatic upgrades to new major versions of PostgreSQL and uses a smaller alpine variant.
+- **Database Credentials:** As mentioned in "Security Considerations," the default Postgres credentials in `docker-compose.yaml` should be changed for production.
 
 ## 🤖 Available Models
 
@@ -96,14 +134,30 @@ The following models are pre-configured in `config.yml`:
 ### Codestral
 - Codestral (text-completion-codestral/codestral-latest)
 
+## 📊 Resource Considerations
+
+The resource usage (CPU, RAM, Disk Space) of this setup can vary significantly based on:
+- The number and size of LLMs configured and used via LiteLLM.
+- The amount of data stored by Open WebUI (e.g., chat history, user documents for RAG).
+- The PostgreSQL database's size over time.
+- The level of activity (number of concurrent users, frequency of requests).
+
+**For Raspberry Pi or other low-resource devices:**
+- Carefully select the models you enable. Smaller models will consume fewer resources.
+- Monitor system resource usage regularly.
+- Performance may vary, especially with larger models or high traffic.
+- Ensure sufficient disk space, especially for the Open WebUI volume and the database.
+
 ## 🔒 Security Considerations
 
 - Store API keys securely and never commit them to version control
 - The `.env` file should be included in your `.gitignore`
+- The `.env` file *is* included in this project's `.gitignore` to help prevent accidental commitment of your secrets.
 - Consider using Docker secrets for production environments
 - The `MASTER_KEY` protects access to your setup; use a strong, unique value
 - Note that your `config.yml` references environment variables using the `os.environ/VARIABLE_NAME` syntax
 - For improved security, consider implementing the optional guardrails functionality
+- The `docker-compose.yaml` file uses default credentials for the PostgreSQL database (`llmproxy`/`dbpassword9090`). For any deployment beyond local testing on a trusted machine, it is strongly recommended to change these defaults. You can do this by editing the `POSTGRES_USER` and `POSTGRES_PASSWORD` environment variables in the `db` service within `docker-compose.yaml`, and correspondingly update the `DATABASE_URL` in the `litellm` service. For better security, consider managing these credentials via your `.env` file and referencing them in `docker-compose.yaml` (e.g., `POSTGRES_USER=\${POSTGRES_USER_FROM_ENV}`).
 
 ## 🔍 Troubleshooting
 

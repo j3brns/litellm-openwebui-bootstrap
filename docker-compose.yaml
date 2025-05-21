@@ -1,6 +1,7 @@
 services:
     openwebui:
-        image: ghcr.io/open-webui/open-webui:main
+        # Using a specific tag for Open WebUI for better stability. Check for newer versions on https://github.com/open-webui/open-webui/releases
+        image: ghcr.io/open-webui/open-webui:v0.6.10
         container_name: open-webui
         ports:
             - "3000:8080"
@@ -15,6 +16,7 @@ services:
         restart: always
 
     litellm:
+        # main-latest tracks recent changes. For critical production, consider finding and using a specific SHA digest or tagged release if available.
         image: ghcr.io/berriai/litellm-database:main-latest
         container_name: litellm
         env_file:
@@ -30,12 +32,13 @@ services:
             STORE_MODEL_IN_DB: "True"
 
     db:
-        image: postgres
+        # Using a specific major version of Postgres (e.g., 16-alpine) is recommended for stability.
+        image: postgres:16-alpine
         restart: always
         environment:
             POSTGRES_DB: litellm
-            POSTGRES_USER: llmproxy
-            POSTGRES_PASSWORD: dbpassword9090
+            POSTGRES_USER: llmproxy # Consider changing for production and managing via .env
+            POSTGRES_PASSWORD: dbpassword9090 # Consider changing for production and managing via .env
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
             interval: 1s
